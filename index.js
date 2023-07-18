@@ -47,19 +47,83 @@ async function run(){
 
         //Phone collection section
         app.get('/phoneCollections', async(req, res) =>{
+            
+            const date = req.params.date;
             const query = {};
             const phones = await phoneCollection.find(query).toArray();
+
+            //get the booking date already provided
+
+            const bookingQuery = { appointmentDate: date };
+            const alreadyBooked = await bookingCollection.find(bookingQuery).toArray();
+
+            //check the booking slot 
+            phones.forEach(phone =>{
+                const phoneBooked = alreadyBooked.filter(book => book.device === book.name);
+                const bookedSlots = phoneBooked.map(book => book.slot);
+                const remainingSLots = phone.slots.filter(slot => !bookedSlots.includes(slot));
+                phone.slot = remainingSLots;
+            })
+
             res.send(phones);
         });
 
         app.get('/phoneCollections/:id', async (req, res) =>{
             const id = req.params.id;
             const query = {  _id : new ObjectId(id) }
-            //console.log(query)
+            
             const singlePhoneCollection = await phoneCollection.findOne(query);
-            console.log(singlePhoneCollection);
             res.send(singlePhoneCollection);
         })
+
+        //booking collection section
+        app.post('/booking', async (req, res) =>{
+            const booking = req.body;
+            const query = {
+                appointmentDate: booking.appointmentDate,
+                email : booking.email,
+                device: booking.device
+            }
+
+            const alreadyBooked = await bookingCollection.find(query).toArray();
+            if(alreadyBooked.length)
+            {
+                const message = `You have already a booking on ${booking.appointmentDate}`;
+                return res.send({acknowledge: false, message});
+            }
+
+
+            const result = await bookingCollection.insertOne(booking);
+            res.send(result);
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
 
         //Tablet collection section
         app.get('/tabCollections', async (req,res) =>{
@@ -75,13 +139,7 @@ async function run(){
             res.send(watchCollections);
         })
 
-        //booking collection section
-        app.post('/bookings', async(req, res) =>{
-            const bookings = req.body;
-            console.log('inside bookings',bookings);
-            const result = await bookingCollection.insertOne(bookings);
-            res.send(result);
-        });
+        
 
         //store users email
         app.post('/emailusers', async(req, res) =>{
