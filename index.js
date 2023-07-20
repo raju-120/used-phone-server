@@ -42,6 +42,9 @@ async function run(){
         //Tablet Booking Collection
         const tabBookingCollection = client.db('usedPhone').collection('tabBookings');
         
+        //Watch Booking Collection
+        const watchBookingCollection = client.db('usedPhone').collection('watchBookings');
+        
         //Users Collection
         const emailUserCollection = client.db('usedPhone').collection('emailusers');
         /* const socialUserCollection = client.db('usedPhone').collection('socialusers');
@@ -154,26 +157,49 @@ async function run(){
         })
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         //watch Collection section
         app.get('/watchCollections', async (req, res) =>{
+            const date = req.query.date;
             const query = {};
-            const watchCollections = await smartWatchCollection.find(query).toArray();
-            res.send(watchCollections);
+            const watches= await smartWatchCollection.find(query).toArray();
+
+            //already provided date to match up the selected date
+
+            const watchBookingQuery = { appointmentDate: date };
+            const watchAlreadyBooked = await watchBookingCollection.find(watchBookingQuery).toArray();
+
+            //looping for the slot available or not
+            watches.forEach(watch =>{
+                const watchBooked = watchAlreadyBooked.filter(book => book.device === watch.name);
+                const watchBookedSlots = watchBooked.map(book => book.slot);
+                const remainingSLots = watch.slots.filter(slot => !watchBookedSlots.includes(slot));
+                watch.slots = remainingSLots;
+                console.log(date,watch.name,watchBookedSlots);
+            })
+
+            res.send(watches);
+        });
+
+        app.post('/watchBookings', async (req, res) =>{
+            const booking = req.body;
+            console.log('inside Booking', booking);
+
+            const query = {
+                appointmentDate: booking.appointmentDate,
+                email: booking.email,
+                device: booking.device
+            }
+
+            const alreadyBookedWatch = await watchBookingCollection.find(query).toArray();
+            
+            if(alreadyBookedWatch.length)
+            {
+                const message = `You have already booked on ${booking.appointmentDate}`;
+                return res.send({acknowledge: false, message});
+            }
+
+            const result = await watchBookingCollection.insertOne(booking);
+            res.send(result);
         })
 
         
