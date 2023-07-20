@@ -39,6 +39,9 @@ async function run(){
         //Booking Collection
         const bookingCollection = client.db('usedPhone').collection('bookings');
         
+        //Tablet Booking Collection
+        const tabBookingCollection = client.db('usedPhone').collection('tabBookings');
+        
         //Users Collection
         const emailUserCollection = client.db('usedPhone').collection('emailusers');
         /* const socialUserCollection = client.db('usedPhone').collection('socialusers');
@@ -77,7 +80,7 @@ async function run(){
         //booking collection section
         app.post('/booking', async (req, res) =>{
             const booking = req.body;
-            console.log('inside booking', booking);
+            //console.log('inside booking', booking);
 
             const query ={
                 appointmentDate:  booking.appointmentDate,
@@ -97,39 +100,74 @@ async function run(){
         })
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
         //Tablet collection section
         app.get('/tabCollections', async (req,res) =>{
+            const date = req.query.date;
             const query = {};
-            const tabletCollections= await tabCollection.find(query).toArray();
-            res.send(tabletCollections);
+            const tablets= await tabCollection.find(query).toArray();
+          
+            //get the provided booking that already provided
+           const tabBookingQuery = {appointmentDate: date};
+           const tabAlreadyBooked = await tabBookingCollection.find(tabBookingQuery).toArray();
+           
+           //looping through the slots
+           tablets.forEach(tablet => {
+            const tabBooked = tabAlreadyBooked.filter(book => book.device === tablet.name);
+            const bookedSlots = tabBooked.map(book => book.slot);
+            const tabRemainingSlots = tablet.slots.filter(slot => !bookedSlots.includes(slot));
+            tablet.slots = tabRemainingSlots;
+            //console.log(date,tablet.name,bookedSlots,tabRemainingSlots);
+           })
+           
+            res.send(tablets);
         });
+
+
+        app.get('/tabCollections/:id', async(req, res) =>{
+            const id = req.params.id;
+            const query = { _id : new ObjectId(id) };
+            const result = await tabCollection.findOne(query);
+            res.send(result);
+           
+            
+        })
+
+        app.post('/tabBookings', async (req, res) =>{
+            const booking = req.body;
+
+            const query = {
+                appointmentDate: booking.appointmentDate,
+                email: booking.email,
+                device: booking.device
+            }
+
+            const alreadyBooked = await tabBookingCollection.find(query).toArray();
+            if(alreadyBooked.length)
+            {
+                const message = `You have already booked on ${booking.appointmentDate}`;
+                return res.send({acknowledge: false, message});
+            }
+
+
+            const result = await tabBookingCollection.insertOne(booking);
+            res.send(result);
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         //watch Collection section
         app.get('/watchCollections', async (req, res) =>{
