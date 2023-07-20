@@ -47,22 +47,20 @@ async function run(){
 
         //Phone collection section
         app.get('/phoneCollections', async(req, res) =>{
-            
-            const date = req.params.date;
+            const date = req.query.date;
             const query = {};
             const phones = await phoneCollection.find(query).toArray();
+            
+            //get the booking date that already provided
+            const bookingQuery= { appointmentDate: date };
+            const alreadyBooked = await bookingCollection.find(bookingQuery).toArray(); 
 
-            //get the booking date already provided
-
-            const bookingQuery = { appointmentDate: date };
-            const alreadyBooked = await bookingCollection.find(bookingQuery).toArray();
-
-            //check the booking slot 
+            //loop through to checkout the slots available
             phones.forEach(phone =>{
-                const phoneBooked = alreadyBooked.filter(book => book.device === book.name);
-                const bookedSlots = phoneBooked.map(book => book.slot);
-                const remainingSLots = phone.slots.filter(slot => !bookedSlots.includes(slot));
-                phone.slot = remainingSLots;
+                const phoneBooked = alreadyBooked.filter(book =>book.device === phone.name);
+                const bookedSlots = phoneBooked.map(book => book.slot );
+                const remainingSlots = phone.slots.filter( slot => !bookedSlots.includes(slot));
+                phone.slots = remainingSlots;
             })
 
             res.send(phones);
@@ -79,19 +77,20 @@ async function run(){
         //booking collection section
         app.post('/booking', async (req, res) =>{
             const booking = req.body;
-            const query = {
-                appointmentDate: booking.appointmentDate,
+            console.log('inside booking', booking);
+
+            const query ={
+                appointmentDate:  booking.appointmentDate,
                 email : booking.email,
-                device: booking.device
+                device : booking.device
             }
 
             const alreadyBooked = await bookingCollection.find(query).toArray();
             if(alreadyBooked.length)
             {
-                const message = `You have already a booking on ${booking.appointmentDate}`;
+                const message = `You already have an booking on ${booking.appointmentDate} `;
                 return res.send({acknowledge: false, message});
             }
-
 
             const result = await bookingCollection.insertOne(booking);
             res.send(result);
