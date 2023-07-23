@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const jwt = require ('jsonwebtoken');
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
@@ -29,6 +30,24 @@ const client = new MongoClient(uri, {
   }
 });
 
+function verifyJWT(req, res, next){
+    
+    //console.log('TOken inside',req.headers.authorization);
+    const authHeader = req.headers.authorization;
+    if(!authHeader){
+        return res.status(401).send('unauthorized access');
+    }
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (err , decoded){
+        if(err){
+            return res.status(403).send({message: 'forbidden access'})
+        }
+        req.decoded = decoded; 
+        next();
+    })
+}
+
 
 async function run(){
     try{
@@ -39,11 +58,11 @@ async function run(){
         //Booking Collection
         const bookingCollection = client.db('usedPhone').collection('bookings');
         
-        //Tablet Booking Collection
-        const tabBookingCollection = client.db('usedPhone').collection('tabBookings');
-        
-        //Watch Booking Collection
+        /* Tablet Booking Collection
+        const tabBookingCollection = client.db('usedPhone').collection('tabBookings'); 
+        Watch Booking Collection
         const watchBookingCollection = client.db('usedPhone').collection('watchBookings');
+         */
         
         //Users Collection
         const emailUserCollection = client.db('usedPhone').collection('emailusers');
@@ -81,6 +100,22 @@ async function run(){
         })
 
         //booking collection section
+
+        app.get('/booking',verifyJWT, async(req, res)=>{
+            const email = req.query.email;
+            
+            console.log('token',req.headers.authorization);
+
+            const decodedEmail = req.query.email;
+            if(email !==decodedEmail){
+                return res.status(403).send('Forbidden access.');
+            }
+            const query ={email : email};
+            
+            const result = await bookingCollection.find(query).toArray();
+            res.send(result);
+        })
+
         app.post('/booking', async (req, res) =>{
             const booking = req.body;
             //console.log('inside booking', booking);
@@ -88,7 +123,7 @@ async function run(){
             const query ={
                 appointmentDate:  booking.appointmentDate,
                 email : booking.email,
-                device : booking.device
+                device : booking.device 
             }
 
             const alreadyBooked = await bookingCollection.find(query).toArray();
@@ -111,7 +146,7 @@ async function run(){
           
             //get the provided booking that already provided
            const tabBookingQuery = {appointmentDate: date};
-           const tabAlreadyBooked = await tabBookingCollection.find(tabBookingQuery).toArray();
+           const tabAlreadyBooked = await bookingCollection.find(tabBookingQuery).toArray();
            
            //looping through the slots
            tablets.forEach(tablet => {
@@ -130,31 +165,10 @@ async function run(){
             const id = req.params.id;
             const query = { _id : new ObjectId(id) };
             const result = await tabCollection.findOne(query);
-            res.send(result);
-           
-            
+            res.send(result); 
         })
 
-        app.post('/tabBookings', async (req, res) =>{
-            const booking = req.body;
-
-            const query = {
-                appointmentDate: booking.appointmentDate,
-                email: booking.email,
-                device: booking.device
-            }
-
-            const alreadyBooked = await tabBookingCollection.find(query).toArray();
-            if(alreadyBooked.length)
-            {
-                const message = `You have already booked on ${booking.appointmentDate}`;
-                return res.send({acknowledge: false, message});
-            }
-
-
-            const result = await tabBookingCollection.insertOne(booking);
-            res.send(result);
-        })
+        
 
 
         //watch Collection section
@@ -166,7 +180,7 @@ async function run(){
             //already provided date to match up the selected date
 
             const watchBookingQuery = { appointmentDate: date };
-            const watchAlreadyBooked = await watchBookingCollection.find(watchBookingQuery).toArray();
+            const watchAlreadyBooked = await bookingCollection.find(watchBookingQuery).toArray();
 
             //looping for the slot available or not
             watches.forEach(watch =>{
@@ -180,36 +194,43 @@ async function run(){
             res.send(watches);
         });
 
-        app.post('/watchBookings', async (req, res) =>{
-            const booking = req.body;
-            console.log('inside Booking', booking);
-
-            const query = {
-                appointmentDate: booking.appointmentDate,
-                email: booking.email,
-                device: booking.device
-            }
-
-            const alreadyBookedWatch = await watchBookingCollection.find(query).toArray();
-            
-            if(alreadyBookedWatch.length)
-            {
-                const message = `You have already booked on ${booking.appointmentDate}`;
-                return res.send({acknowledge: false, message});
-            }
-
-            const result = await watchBookingCollection.insertOne(booking);
+        app.get('/watchCollections/:id', async(req, res) =>{
+            const id = req.params.id;
+            const query = { _id : new ObjectId(id) };
+            const result = await smartWatchCollection.findOne(query);
             res.send(result);
         })
 
         
 
         //store users email
+        app.get('/emailusers', async(req,res) =>{
+            const query = {};
+            const result = await emailUserCollection.find(query).toArray();
+            res.send(result);
+        });
+
         app.post('/emailusers', async(req, res) =>{
             const emailUsers = req.body;
             const result = await emailUserCollection.insertOne(emailUsers);
             res.send(result);
+        });
+
+        //JASONWEBTOKEN
+        app.get('/jwt', async(req, res) =>{
+            const email = req.query.email;
+            const query = {email : email};
+            const user = await emailUserCollection.findOne(query);
+            if(user)
+            {
+                const token = jwt.sign({email},process.env.ACCESS_TOKEN, {expiresIn: '365d'});
+                return res.send({accessToken: token})
+            }
+            console.log('users info',user)
+            res.status(403).send({accessToken: 'jwt'});
         })
+
+
 
         /* app.post('/socialusers', async(req, res) =>{
             const socialUser = req.body;
