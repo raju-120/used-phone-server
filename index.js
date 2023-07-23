@@ -66,8 +66,9 @@ async function run(){
         
         //Users Collection
         const emailUserCollection = client.db('usedPhone').collection('emailusers');
-        /* const socialUserCollection = client.db('usedPhone').collection('socialusers');
- */
+        /* const socialUserCollection = client.db('usedPhone').collection('socialusers');*/
+
+        const complainCollection = client.db('usedPhone').collection('complains');
         
 
         //Phone collection section
@@ -104,7 +105,7 @@ async function run(){
         app.get('/booking',verifyJWT, async(req, res)=>{
             const email = req.query.email;
             
-            console.log('token',req.headers.authorization);
+           // console.log('token',req.headers.authorization);
 
             const decodedEmail = req.query.email;
             if(email !==decodedEmail){
@@ -188,7 +189,7 @@ async function run(){
                 const watchBookedSlots = watchBooked.map(book => book.slot);
                 const remainingSLots = watch.slots.filter(slot => !watchBookedSlots.includes(slot));
                 watch.slots = remainingSLots;
-                console.log(date,watch.name,watchBookedSlots);
+                //console.log(date,watch.name,watchBookedSlots);
             })
 
             res.send(watches);
@@ -216,6 +217,14 @@ async function run(){
             res.send(result);
         });
 
+        app.delete('/emailusers/:id', async(req, res) =>{
+            const id = req.params.id;
+            //console.log(id)
+            const query = {_id : new ObjectId(id)};
+            const result = await emailUserCollection.deleteOne(query);
+            res.send(result);
+        })
+
         //JASONWEBTOKEN
         app.get('/jwt', async(req, res) =>{
             const email = req.query.email;
@@ -226,9 +235,32 @@ async function run(){
                 const token = jwt.sign({email},process.env.ACCESS_TOKEN, {expiresIn: '365d'});
                 return res.send({accessToken: token})
             }
-            console.log('users info',user)
+            //console.log('users info',user)
             res.status(403).send({accessToken: 'jwt'});
+        });
+
+        //Reported Collection
+
+        app.get('/complains', async(req, res) =>{
+            const query = {};
+            const result = await complainCollection.find(query).toArray();
+            res.send(result);
+        });
+
+        app.post('/complains', async(req, res) =>{
+            const report = req.body;
+            const result = await complainCollection.insertOne(report);
+            res.send(result);
+        });
+        app.delete('/complains/:id' , async(req, res) =>{
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)}
+            const result = await complainCollection.deleteOne(query);
+            console.log(result);
+            res.send(result); 
         })
+
+        
 
 
 
