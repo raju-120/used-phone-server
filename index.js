@@ -71,6 +71,23 @@ async function run(){
         const complainCollection = client.db('usedPhone').collection('complains');
         
 
+
+        //Admin verify section
+        const verifyAdmin = async(req, res, next) =>{
+            const decodedEmail = req.decoded.email;
+            const query = {email: decodedEmail};
+            const user = await emailUserCollection.findOne(query);
+
+            if(user?.role !== 'admin'){
+                return res.status(403).send({message: 'forbidden access'})
+            }
+            next();
+        }
+
+
+
+
+
         //Phone collection section
         app.get('/phoneCollections', async(req, res) =>{
             const date = req.query.date;
@@ -92,6 +109,12 @@ async function run(){
             res.send(phones);
         });
 
+        app.post('/phoneCollections', async(req, res) =>{
+            const addPhone = form.body;
+            const result = await phoneCollection.insertOne(addPhone);
+            res.send(result);
+        })
+
         app.get('/phoneCollections/:id', async (req, res) =>{
             const id = req.params.id;
             const query = {  _id : new ObjectId(id) }
@@ -99,6 +122,7 @@ async function run(){
             const singlePhoneCollection = await phoneCollection.findOne(query);
             res.send(singlePhoneCollection);
         })
+        
 
         //booking collection section
 
@@ -217,6 +241,37 @@ async function run(){
             res.send(result);
         });
 
+        app.get('/emailusers/admin/:email' , async(req, res) =>{
+            const email = req.params.email;
+            const query = { email}
+            const user = await emailUserCollection.findOne(query);
+            res.send({isAdmin:  user?.role === 'admin'})
+        })
+
+        app.put('/emailusers/admin/:id',verifyJWT, async(req, res) =>{
+            const decodedEmail = req.decoded.email;
+            const query = {email : decodedEmail}
+            const user = await emailUserCollection.findOne(query);
+            if(user?.role !== 'admin')
+            {
+                return res.status(403).send({message: 'forbidden access'})
+            }
+
+
+            const id = req.params.id;
+            const filter = { _id : new ObjectId(id) };
+            const options = { upsert: true };
+            const updatedDoc ={
+                $set: {
+                    role: 'admin'
+                }
+            }
+            const result = await emailUserCollection.updateOne(filter,updatedDoc,options);
+            res.send(result);
+            
+        })
+
+
         app.delete('/emailusers/:id', async(req, res) =>{
             const id = req.params.id;
             //console.log(id)
@@ -256,7 +311,7 @@ async function run(){
             const id = req.params.id;
             const query = {_id: new ObjectId(id)}
             const result = await complainCollection.deleteOne(query);
-            console.log(result);
+            //console.log(result);
             res.send(result); 
         })
 
