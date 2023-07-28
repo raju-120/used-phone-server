@@ -164,6 +164,7 @@ async function run(){
 
 
         //Tablet collection section
+
         app.get('/tabCollections', async (req,res) =>{
             const date = req.query.date;
             const query = {};
@@ -184,6 +185,12 @@ async function run(){
            
             res.send(tablets);
         });
+
+        app.post('/tabCollections', async(req, res) =>{
+            const query = req.body;
+            const result = await tabCollection.insertOne(query);
+            res.send(result);
+        })
 
 
         app.get('/tabCollections/:id', async(req, res) =>{
