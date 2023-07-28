@@ -110,7 +110,7 @@ async function run(){
         });
 
         app.post('/phoneCollections', async(req, res) =>{
-            const addPhone = form.body;
+            const addPhone = req.body;
             const result = await phoneCollection.insertOne(addPhone);
             res.send(result);
         })
@@ -218,6 +218,12 @@ async function run(){
 
             res.send(watches);
         });
+
+        app.post('/watchCollections', async( req, res) =>{
+            const query = req.body;
+            const result = await smartWatchCollection.insertOne(query);
+            res.send(result); 
+        })
 
         app.get('/watchCollections/:id', async(req, res) =>{
             const id = req.params.id;
