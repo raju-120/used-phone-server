@@ -58,11 +58,7 @@ async function run(){
         //Booking Collection
         const bookingCollection = client.db('usedPhone').collection('bookings');
         
-        /* Tablet Booking Collection
-        const tabBookingCollection = client.db('usedPhone').collection('tabBookings'); 
-        Watch Booking Collection
-        const watchBookingCollection = client.db('usedPhone').collection('watchBookings');
-         */
+        
         
         //Users Collection
         const emailUserCollection = client.db('usedPhone').collection('emailusers');
@@ -83,6 +79,16 @@ async function run(){
             }
             next();
         }
+        const verifySeller = async(req, res, next) =>{
+            const decodedEmail = req.decoded.email;
+            const query = {email: decodedEmail};
+            const user = await emailUserCollection.findOne(query);
+
+            if(user?.role !== 'seller'){
+                return res.status(403).send({message: 'forbidden access'})
+            }
+            next();
+        }
 
 
 
@@ -90,6 +96,13 @@ async function run(){
 
         //Phone collection section
         app.get('/phoneCollections', async(req, res) =>{
+            const email = req.query.email;
+            const queryEmail = {sellerEmail : email};
+            console.log(queryEmail);
+            const result = await phoneCollection.find(queryEmail).toArray();
+            res.send(result);
+           
+
             const date = req.query.date;
             const query = {};
             const phones = await phoneCollection.find(query).toArray();
@@ -106,7 +119,7 @@ async function run(){
                 phone.slots = remainingSlots;
             })
 
-            res.send(phones);
+            res.send(phones, result);
         });
 
         app.post('/phoneCollections', async(req, res) =>{
@@ -118,7 +131,6 @@ async function run(){
         app.get('/phoneCollections/:id', async (req, res) =>{
             const id = req.params.id;
             const query = {  _id : new ObjectId(id) }
-            
             const singlePhoneCollection = await phoneCollection.findOne(query);
             res.send(singlePhoneCollection);
         })
@@ -128,8 +140,6 @@ async function run(){
 
         app.get('/booking',verifyJWT, async(req, res)=>{
             const email = req.query.email;
-            
-           // console.log('token',req.headers.authorization);
 
             const decodedEmail = req.query.email;
             if(email !==decodedEmail){
@@ -254,14 +264,21 @@ async function run(){
             res.send(result);
         });
 
-        app.get('/emailusers/admin/:email' , async(req, res) =>{
+        app.get('/emailusers/admin/:email', async(req, res) =>{
             const email = req.params.email;
             const query = { email}
             const user = await emailUserCollection.findOne(query);
             res.send({isAdmin:  user?.role === 'admin'})
         })
 
-        app.put('/emailusers/admin/:id',verifyJWT, async(req, res) =>{
+        app.get('/emailusers/seller/:email', async(req, res) =>{
+            const email = req.params.email;
+            const query = { email}
+            const user = await emailUserCollection.findOne(query);
+            res.send({isSeller: user?.role === 'seller'})
+        })
+
+        app.put('/emailusers/admin/:id', async(req, res) =>{
             const decodedEmail = req.decoded.email;
             const query = {email : decodedEmail}
             const user = await emailUserCollection.findOne(query);
