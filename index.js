@@ -8,6 +8,10 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const port = process.env.PORT || 5000;
 
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+//console.log(stripe);
+
+
 //middleware
 
 app.use(cors());
@@ -98,14 +102,15 @@ async function run(){
         app.get('/phoneCollections', async(req, res) =>{
             const email = req.query.email;
             const queryEmail = {sellerEmail : email};
-            console.log(queryEmail);
+            
             const result = await phoneCollection.find(queryEmail).toArray();
-            res.send(result);
+            //console.log(result);
+            
            
 
             const date = req.query.date;
             const query = {};
-            const phones = await phoneCollection.find(query).toArray();
+            const phones = await phoneCollection.find(query ).toArray();
             
             //get the booking date that already provided
             const bookingQuery= { appointmentDate: date };
@@ -118,8 +123,9 @@ async function run(){
                 const remainingSlots = phone.slots.filter( slot => !bookedSlots.includes(slot));
                 phone.slots = remainingSlots;
             })
+            /* const phones =result */ 
 
-            res.send(phones, result);
+            res.send(phones);
         });
 
         app.post('/phoneCollections', async(req, res) =>{
@@ -170,6 +176,13 @@ async function run(){
 
             const result = await bookingCollection.insertOne(booking);
             res.send(result);
+        });
+
+        app.get('/booking/:id',async(req,res) =>{
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id)}
+            const booking = await bookingCollection.findOne(query);
+            res.send(booking);
         })
 
 
@@ -279,6 +292,7 @@ async function run(){
         })
 
         app.put('/emailusers/admin/:id', async(req, res) =>{
+            
             const decodedEmail = req.decoded.email;
             const query = {email : decodedEmail}
             const user = await emailUserCollection.findOne(query);
@@ -304,7 +318,6 @@ async function run(){
 
         app.delete('/emailusers/:id', async(req, res) =>{
             const id = req.params.id;
-            //console.log(id)
             const query = {_id : new ObjectId(id)};
             const result = await emailUserCollection.deleteOne(query);
             res.send(result);
@@ -343,17 +356,28 @@ async function run(){
             const result = await complainCollection.deleteOne(query);
             //console.log(result);
             res.send(result); 
-        })
+        });
 
-        
+        //Stripe Payment section
+        app.post('/create-payment-intent', async (req, res) =>{
+            const booking = req.body;
+            const price = booking.price;
+            const amount = Math.round(price*100);
+            console.log(amount);
 
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: 'BDT',
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                  ],
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+              });
+        }); 
 
-
-        /* app.post('/socialusers', async(req, res) =>{
-            const socialUser = req.body;
-            const result = await socialUserCollection.insertOne(socialUser);
-            res.send(result);
-        }) */
+     
 
         
     }
