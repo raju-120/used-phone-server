@@ -69,6 +69,7 @@ async function run(){
         /* const socialUserCollection = client.db('usedPhone').collection('socialusers');*/
 
         const complainCollection = client.db('usedPhone').collection('complains');
+        const paymentCollection = client.db('usedPhone').collection('payment');
         
 
 
@@ -376,6 +377,21 @@ async function run(){
                 clientSecret: paymentIntent.client_secret,
               });
         }); 
+
+        app.post('/payment', async(req, res) =>{
+            const payment = req.body;
+            const result = await paymentCollection.insertOne(payment);
+            const id = payment.bookingId;
+            const filter = { _id : new ObjectId(id)}
+            const updatedDoc = {
+                $set:{
+                    paid: true,
+                    transactionId : payment.transactionId 
+                }
+            }
+            const updatedResult = await bookingCollection.updateOne(filter,updatedDoc);
+            res.send(result);
+        })
 
      
 
