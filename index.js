@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const SSLCommerzPayment = require('sslcommerz-lts');
 
 const jwt = require ('jsonwebtoken');
 const app = express();
@@ -33,6 +34,14 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+
+//SSLCOMMERCEZ setUp
+const store_id = process.env.SSLCOMMERZ_STORE_ID;
+const store_passwd = process.env.SSLCOMMERZ_STORE_PASSWORD;
+const is_live = false //true for live, false for sandbox
+
+
 
 function verifyJWT(req, res, next){
     
@@ -391,7 +400,59 @@ async function run(){
             }
             const updatedResult = await bookingCollection.updateOne(filter,updatedDoc);
             res.send(result);
+        });
+
+        //SSLCOMMERZ Payment
+        app.post('/sslPayment', async(req, res) =>{
+            const payment = req.body;
+            const transactionId = new ObjectId().toString()
+            const data = {
+                total_amount: payment.price,
+                currency: 'BDT',
+                tran_id: transactionId, // use unique tran_id for each api call
+                success_url: 'http://localhost:5000/sslPayment/success',
+                fail_url: 'http://localhost:5000/sslPayment/fail',
+                cancel_url: 'http://localhost:5000/sslPayment/cancel',
+                ipn_url: 'http://localhost:3030/ipn',
+                shipping_method: 'Courier',
+                product_name: 'Computer.',
+                product_category: 'Electronic',
+                product_profile: 'general',
+                cus_name: payment.user,
+                cus_email: payment.email,
+                cus_add1: 'Dhaka',
+                cus_add2: 'Dhaka',
+                cus_city: 'Dhaka',
+                cus_state: 'Dhaka',
+                cus_postcode: '1000',
+                cus_country: 'Bangladesh',
+                cus_phone: payment.phone,
+                cus_fax: '01711111111',
+                ship_name: 'Customer Name',
+                ship_add1: 'Dhaka',
+                ship_add2: 'Dhaka',
+                ship_city: 'Dhaka',
+                ship_state: 'Dhaka',
+                ship_postcode: 1000,
+                ship_country: 'Bangladesh',
+            };
+            const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+            sslcz.init(data).then(apiResponse => {
+                // Redirect the user to payment gateway
+                let GatewayPageURL = apiResponse.GatewayPageURL
+                //console.log(apiResponse)
+                paymentCollection.insertOne({
+                    ...payment,
+                    transactionId: tran_id
+                })
+                res.send({url: GatewayPageURL})
+            }); 
         })
+
+        app.post('/sslPayment/success', async(req, res) =>{
+            console.log('SUCCESS')
+        })
+     
 
      
 
