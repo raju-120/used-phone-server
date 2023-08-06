@@ -405,17 +405,23 @@ async function run(){
         //SSLCOMMERZ Payment
         app.post('/sslPayment', async(req, res) =>{
             const payment = req.body;
+            const {email,name,price,phone} = payment;
+            if(!name || !email || !price || !phone){
+                return res.send({error: "Please provide all the information"});
+            }
+            //console.log(bookingId);
             const transactionId = new ObjectId().toString()
             const data = {
                 total_amount: payment.price,
                 currency: 'BDT',
                 tran_id: transactionId, // use unique tran_id for each api call
-                success_url: 'http://localhost:5000/sslPayment/success',
-                fail_url: 'http://localhost:5000/sslPayment/fail',
-                cancel_url: 'http://localhost:5000/sslPayment/cancel',
-                ipn_url: 'http://localhost:3030/ipn',
+                success_url: `http://localhost:5000/sslPayment/success?transactionId=${transactionId}`,
+                fail_url: `http://localhost:5000/sslPayment/fail?transactionId=${transactionId}`,
+                cancel_url: ("http://localhost:5000/sslPayment/cancel"),
+                ipn_url: ("http://localhost:3030/ipn"),
                 shipping_method: 'Courier',
                 product_name: 'Computer.',
+                //product_id: bookingId,
                 product_category: 'Electronic',
                 product_profile: 'general',
                 cus_name: payment.user,
@@ -443,15 +449,61 @@ async function run(){
                 //console.log(apiResponse)
                 paymentCollection.insertOne({
                     ...payment,
-                    transactionId: tran_id
-                })
+                        transactionId,
+                        paid: false,
+                });
+                const id= payment.bookingId;
+            
+                const filter = {_id: new ObjectId(id)}
+                const updatedDoc = {
+                    $set:{
+                        paid: true,
+                        transactionId,
+                    }
+                } 
+                bookingCollection.updateOne(filter,updatedDoc) ;
+                
                 res.send({url: GatewayPageURL})
             }); 
+        });
+
+        app.post("/sslPayment/success", async(req, res) =>{
+            const {transactionId} = req.query;
+            if(!transactionId){
+                return res.redirect("http://localhost:3000/sslPayment/fail")
+            }
+            const result = await paymentCollection.updateOne(
+                {transactionId},
+                 {$set: 
+                    {
+                        paid: 'true' , 
+                        paidAt: new Date() 
+                    } 
+                }
+            );
+            res.redirect(`http://localhost:3000/sslPayment/success?transactionId=${transactionId}`)
+            /* if(updatedResult.modifiedCount > 0) */
         })
 
-        app.post('/sslPayment/success', async(req, res) =>{
-            console.log('SUCCESS')
-        })
+        app.get("/sslPayment/success/by-transaction-id/:id",async(req,res) =>{
+            const {id } = req.params;
+            const payment = await paymentCollection.findOne({transactionId: id});
+            res.send(payment);
+        });
+
+        app.post("/sslPayment/fail", async(req, res) =>{
+            const {transactionId} = req.query;
+            if(!transactionId){
+                return res.redirect("http://localhost:3000/sslPayment/fail")
+            }
+            const result =await paymentCollection.deleteOne({transactionId});
+            if(result?.deletedCount)
+            {
+                res.redirect("http://localhost:3000/sslPayment/fail");
+            }
+        });
+
+        
      
 
      
