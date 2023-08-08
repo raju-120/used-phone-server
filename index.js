@@ -113,10 +113,8 @@ async function run(){
             const email = req.query.email;
             const queryEmail = {sellerEmail : email};
             
-            const result = await phoneCollection.find(queryEmail).toArray();
+            const results = await phoneCollection.find(queryEmail).toArray();
             //console.log(result);
-            
-           
 
             const date = req.query.date;
             const query = {};
@@ -135,21 +133,28 @@ async function run(){
             })
             /* const phones =result */ 
 
-            res.send(phones);
+            res.send({phones,results});
         });
 
         app.post('/phoneCollections', async(req, res) =>{
             const addPhone = req.body;
             const result = await phoneCollection.insertOne(addPhone);
             res.send(result);
-        })
+        });
 
         app.get('/phoneCollections/:id', async (req, res) =>{
             const id = req.params.id;
             const query = {  _id : new ObjectId(id) }
             const singlePhoneCollection = await phoneCollection.findOne(query);
             res.send(singlePhoneCollection);
-        })
+        });
+
+        app.delete('/phoneCollections/result/:id',async(req, res) =>{
+            const id = req.params.id;
+            const query = {_id : new ObjectId(id)};
+            const result = await phoneCollection?.deleteOne(query);
+            res.send(result);
+        });
         
 
         //booking collection section
@@ -199,6 +204,11 @@ async function run(){
         //Tablet collection section
 
         app.get('/tabCollections', async (req,res) =>{
+            const email = req.query.email;
+            const queryEmail = {sellerEmail: email}
+            const results = await tabCollection.find(queryEmail).toArray()
+
+
             const date = req.query.date;
             const query = {};
             const tablets= await tabCollection.find(query).toArray();
@@ -216,14 +226,14 @@ async function run(){
             //console.log(date,tablet.name,bookedSlots,tabRemainingSlots);
            })
            
-            res.send(tablets);
+            res.send({tablets, results});
         });
 
         app.post('/tabCollections', async(req, res) =>{
             const query = req.body;
             const result = await tabCollection.insertOne(query);
             res.send(result);
-        })
+        });
 
 
         app.get('/tabCollections/:id', async(req, res) =>{
@@ -231,13 +241,24 @@ async function run(){
             const query = { _id : new ObjectId(id) };
             const result = await tabCollection.findOne(query);
             res.send(result); 
-        })
+        });
 
+        app.delete('/tabCollections/result/:id',async(req, res) =>{
+            const id = req.params.id;
+            const query = {_id : new ObjectId(id)}
+            const result = await tabCollection.deleteOne(query);
+            res.send(result);
+        });
         
 
 
         //watch Collection section
         app.get('/watchCollections', async (req, res) =>{
+            const email = req.query.email;
+            const queryEmail = {sellerEmail: email};
+            const results = await smartWatchCollection.find(queryEmail).toArray();
+
+
             const date = req.query.date;
             const query = {};
             const watches= await smartWatchCollection.find(query).toArray();
@@ -256,7 +277,7 @@ async function run(){
                 //console.log(date,watch.name,watchBookedSlots);
             })
 
-            res.send(watches);
+            res.send({watches, results});
         });
 
         app.post('/watchCollections', async( req, res) =>{
@@ -272,7 +293,12 @@ async function run(){
             res.send(result);
         })
 
-        
+        app.delete('/watchCollections/result/:id',async(req, res) =>{
+            const id = req.params.id;
+            const query = {_id : new ObjectId(id)}
+            const result = await smartWatchCollection.deleteOne(query);
+            res.send(result);
+        });
 
         //store users email
         app.get('/emailusers', async(req,res) =>{
@@ -405,8 +431,8 @@ async function run(){
         //SSLCOMMERZ Payment
         app.post('/sslPayment', async(req, res) =>{
             const payment = req.body;
-            const {email,name,price,phone} = payment;
-            if(!name || !email || !price || !phone){
+            //const {email,name,price,phone} = payment;
+            if(!payment){
                 return res.send({error: "Please provide all the information"});
             }
             //console.log(bookingId);
