@@ -486,7 +486,7 @@ async function run(){
                         paid: true,
                         transactionId,
                     }
-                } 
+                }  
                 bookingCollection.updateOne(filter,updatedDoc) ;
                 
                 res.send({url: GatewayPageURL})
