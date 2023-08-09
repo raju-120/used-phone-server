@@ -159,7 +159,7 @@ async function run(){
 
         //booking collection section
 
-        app.get('/booking',verifyJWT, async(req, res)=>{
+        app.get('/booking', async(req, res)=>{
             const email = req.query.email;
 
             const decodedEmail = req.query.email;
@@ -441,9 +441,9 @@ async function run(){
                 total_amount: payment.price,
                 currency: 'BDT',
                 tran_id: transactionId, // use unique tran_id for each api call
-                success_url: `http://localhost:5000/sslPayment/success?transactionId=${transactionId}`,
-                fail_url: `http://localhost:5000/sslPayment/fail?transactionId=${transactionId}`,
-                cancel_url: ("http://localhost:5000/sslPayment/cancel"),
+                success_url: `${process.env.SERVER_URL}/sslPayment/success?transactionId=${transactionId}`,
+                fail_url: `${process.env.SERVER_URL}/sslPayment/fail?transactionId=${transactionId}`,
+                cancel_url: `${process.env.SERVER_URL}/sslPayment/cancel`,
                 ipn_url: ("http://localhost:3030/ipn"),
                 shipping_method: 'Courier',
                 product_name: 'Computer.',
@@ -496,7 +496,7 @@ async function run(){
         app.post("/sslPayment/success", async(req, res) =>{
             const {transactionId} = req.query;
             if(!transactionId){
-                return res.redirect("http://localhost:3000/sslPayment/fail")
+                return res.redirect(`${process.env.CLIENT_URL}/sslPayment/fail`)
             }
             const result = await paymentCollection.updateOne(
                 {transactionId},
@@ -507,7 +507,7 @@ async function run(){
                     } 
                 }
             );
-            res.redirect(`http://localhost:3000/sslPayment/success?transactionId=${transactionId}`)
+            res.redirect(`${process.env.CLIENT_URL}/sslPayment/success?transactionId=${transactionId}`)
             /* if(updatedResult.modifiedCount > 0) */
         })
 
@@ -520,12 +520,12 @@ async function run(){
         app.post("/sslPayment/fail", async(req, res) =>{
             const {transactionId} = req.query;
             if(!transactionId){
-                return res.redirect("http://localhost:3000/sslPayment/fail")
+                return res.redirect(`${process.env.CLIENT_URL}/sslPayment/fail`)
             }
             const result =await paymentCollection.deleteOne({transactionId});
             if(result?.deletedCount)
             {
-                res.redirect("http://localhost:3000/sslPayment/fail");
+                res.redirect(`${process.env.CLIENT_URL}/sslPayment/fail`);
             }
         });
 
